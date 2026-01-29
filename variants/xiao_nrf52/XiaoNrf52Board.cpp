@@ -74,23 +74,47 @@ uint16_t XiaoNrf52Board::getBattMilliVolts() {
 float volatile tempCelsius = 0.0f;
 
 void TEMP_IRQHandler(void){
-int32_t volatile temp;
-    NRF_TEMP->EVENTS_DATARDY = 0;
-    
-    int32_t temp = NRF_TEMP->TEMP;
-    MESH_DEBUG_PRINTLN("Raw temp: y", temp);
 
-    float celsius = (float)temp / 4.0f;
-    MESH_DEBUG_PRINTLN("C temp: %f", celsius);
+    MESH_DEBUG_PRINTLN("TEMP_IRQ");
+    if (NRF_TEMP->EVENTS_DATARDY)
+    {
+      NRF_TEMP->EVENTS_DATARDY = 0;
 
-    NRF_TEMP->TASKS_STOP = 1; /** Stop the temperature measurement. */
+      int32_t temp = NRF_TEMP->TEMP;
+      MESH_DEBUG_PRINTLN("Raw temp: y", temp);
 
-    tempCelsius = celsius;
+      float celsius = (float)temp / 4.0f;
+      MESH_DEBUG_PRINTLN("C temp: %f", celsius);
+
+      // Stop TEMP peripheral to save power
+      NRF_TEMP->TASKS_STOP = 1;
+
+      tempCelsius = celsius;
+    }
 }
 
 float XiaoNrf52Board::getTemperatureCelsius() {
 
-    NRF_TEMP->INTENSET |= TEMP_INTENSET_DATARDY_Enabled; /** Enable temperature interrupt */
+    MESH_DEBUG_PRINTLN("getTemperatureCelsius");
+    /*
+    NRF_TEMP->INTENSET |= TEMP_INTENSET_DATARDY_Enabled;
+    NVIC_SetPriority(TEMP_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL);
+    MESH_DEBUG_PRINTLN("NVIC_SetPriority");
+    NVIC_EnableIRQ(TEMP_IRQn);
+    */
+   // Clear pending event
+    NRF_TEMP->EVENTS_DATARDY = 0;
+
+    // Enable DATARDY interrupt
+    NRF_TEMP->INTENSET = TEMP_INTENSET_DATARDY_Msk;
+
+    // Enable TEMP interrupt in NVIC
+    NVIC_ClearPendingIRQ(TEMP_IRQn);
+    NVIC_SetPriority(TEMP_IRQn, 7);   // lowest priority
+    NVIC_EnableIRQ(TEMP_IRQn);
+
+    MESH_DEBUG_PRINTLN("NVIC_EnableIRQ");
+
     NRF_TEMP->TASKS_START = 1; /** Start the temperature measurement. */
   
     return tempCelsius; // this is the previous measurement
