@@ -71,7 +71,7 @@ uint16_t XiaoNrf52Board::getBattMilliVolts() {
   return (adcvalue * ADC_MULTIPLIER * AREF_VOLTAGE) / 4.096;
 }
 
-float volatile tempCelsius;
+float volatile tempCelsius = 0.0f;
 
 void TEMP_IRQHandler(void){
 int32_t volatile temp;
